@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ── Presupuesto Mensual ───────────────────────────────────────────────────────
+
+model MonthBudget {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String?  @db.ObjectId
+  monthKey      String
+  income        Int
+  fixedItems    Json
+  variableItems Json
+  savingsItems  Json
+  creditCards   Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ── Inversiones Balanz ────────────────────────────────────────────────────────
+
+model Investment {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String?  @db.ObjectId
+  cafciId      Int?
+  name         String
+  ticker       String
+  currency     String   @default("ARS")
+  currentPrice Float    @default(0)
+  priceDate    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── Ledger de Transacciones ───────────────────────────────────────────────────
+
+model Transaction {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  investmentId String   @db.ObjectId
+  type         String   // "BUY" | "SELL"
+  date         String   // YYYY-MM-DD — exact operation date
+  cuotapartes  Float    // always positive
+  price        Float    // per cuotaparte at time of operation
+  createdAt    DateTime @default(now())
+}
+
+// ── Historial de Precios CAFCI ────────────────────────────────────────────────
+
+model PriceHistory {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  investmentId String @db.ObjectId
+  cafciId      Int
+  currency     String
+  date         String  // YYYY-MM-DD — one record per fund per trading day
+  price        Float
+
+  @@unique([investmentId, date])
+}
+
+// ── Usuarios ──────────────────────────────────────────────────────────────────
+
+model User {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  email             String   @unique
+  password          String?  // null for OAuth-only accounts
+  provider          String   @default("credentials") // "credentials" | "google"
+  providerAccountId String?  // Google's "sub" ID
+  image             String?  // profile picture URL from Google
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ── Wishlist ──────────────────────────────────────────────────────────────────
+
+model TrackedProduct {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String?  @db.ObjectId
+  url          String
+  name         String
+  store        String
+  imageUrl     String?
+  price        Int
+  checked      Boolean  @default(false)
+  collection   String?
+  priceHistory Json     // { date: string; price: number }[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

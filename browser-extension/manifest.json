@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Vaulty - Rastrear precio",
+  "version": "1.0",
+  "description": "Agrega el producto de la pestaña activa al Tracker de Precios de Vaulty.",
+  "action": {
+    "default_title": "Rastrear precio en Vaulty"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
