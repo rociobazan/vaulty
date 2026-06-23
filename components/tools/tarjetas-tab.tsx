@@ -767,7 +767,7 @@ export function TarjetasTab() {
                   content={({ active, payload, label }) => (
                     <ProjectionTooltip
                       active={active}
-                      payload={payload as { name: string; value: number }[]}
+                      payload={payload as unknown as { name: string; value: number }[]}
                       label={label as string}
                       projection={projection}
                     />
