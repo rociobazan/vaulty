@@ -26,7 +26,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://api.pub.cafci.org.ar/pb_get/2026/03/01\" -H \"User-Agent: NestReady/1.0\")",
       "Bash(grep -r \"export.*proxy\\\\|import.*proxy\" \"c:\\\\Users\\\\ASUS\\\\Desktop\\\\Analista de sistemas\\\\Construccion de sitios web\\\\nest-ready-finance-app\" --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\")",
       "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\ASUS\\\\Desktop\\\\Analista de sistemas\\\\Construccion de sitios web\\\\nest-ready-finance-app\" -Depth 0 -File | Where-Object {$_.Extension -in '.ts', '.tsx', '.mts', '.cts'} | Select-Object Name, FullName)",
-      "Bash(mkdir -p \"c:\\\\Users\\\\ASUS\\\\Desktop\\\\Analista de sistemas\\\\Construccion de sitios web\\\\nest-ready-finance-app\\\\app\\\\\\(main\\)\\\\api-docs\")"
+      "Bash(mkdir -p \"c:\\\\Users\\\\ASUS\\\\Desktop\\\\Analista de sistemas\\\\Construccion de sitios web\\\\nest-ready-finance-app\\\\app\\\\\\(main\\)\\\\api-docs\")",
+      "Bash(npx vercel *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ASUS\\Desktop\\Analista de sistemas\\Construccion de sitios web\\nest-ready-finance-app\\app\\(main)"

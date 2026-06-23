@@ -253,7 +253,7 @@ export function TarjetasTab() {
         const rawCards = (data.creditCards ?? []) as Record<string, unknown>[]
         setCards(
           rawCards.map((card) => ({
-            ...(card as CreditCardEntry),
+            ...(card as unknown as CreditCardEntry),
             purchases: ((card.purchases as Record<string, unknown>[]) ?? []).map(normalizePurchase),
           })),
         )
