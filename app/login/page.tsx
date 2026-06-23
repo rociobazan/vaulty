@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Eye, EyeOff, Lock, Mail, User2, TrendingUp } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail, User2, TrendingUp, CheckCircle2, XCircle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,21 +18,47 @@ import { registerUser, loginUser } from "./actions"
 
 // ── Validation schemas ────────────────────────────────────────────────────────
 
+const passwordSchema = z
+  .string()
+  .min(6, "Mínimo 6 caracteres")
+  .regex(/[a-zA-Z]/, "Debe incluir al menos una letra")
+  .regex(/[0-9]/, "Debe incluir al menos un número")
+
 const LoginSchema = z.object({
   email: z.string().email("Correo electrónico inválido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  password: z.string().min(1, "Ingresá tu contraseña"),
 })
 
-const RegisterSchema = z.object({
-  name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-  email: z.string().email("Correo electrónico inválido"),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
-})
+const RegisterSchema = z
+  .object({
+    name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
+    email: z.string().email("Correo electrónico inválido"),
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirmá tu contraseña"),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  })
 
 type LoginData = z.infer<typeof LoginSchema>
 type RegisterData = z.infer<typeof RegisterSchema>
 
-// ── Google icon SVG ───────────────────────────────────────────────────────────
+// ── Password rules ────────────────────────────────────────────────────────────
+
+function getPasswordRules(pw: string) {
+  return [
+    { label: "Mínimo 6 caracteres",   met: pw.length >= 6 },
+    { label: "Al menos una letra",    met: /[a-zA-Z]/.test(pw) },
+    { label: "Al menos un número",    met: /[0-9]/.test(pw) },
+  ]
+}
+
+function allRulesMet(pw: string) {
+  return getPasswordRules(pw).every((r) => r.met)
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function GoogleIcon() {
   return (
@@ -45,8 +71,6 @@ function GoogleIcon() {
   )
 }
 
-// ── Divider ───────────────────────────────────────────────────────────────────
-
 function OrDivider() {
   return (
     <div className="flex items-center gap-3">
@@ -56,8 +80,6 @@ function OrDivider() {
     </div>
   )
 }
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null
@@ -95,6 +117,29 @@ function PasswordInput({
   )
 }
 
+function PasswordChecklist({ password }: { password: string }) {
+  if (!password) return null
+  const rules = getPasswordRules(password)
+  return (
+    <div className="mt-2 flex flex-col gap-1 rounded-lg border border-border bg-muted/40 px-3 py-2">
+      {rules.map((rule) => (
+        <div
+          key={rule.label}
+          className={cn(
+            "flex items-center gap-1.5 text-xs transition-colors duration-200",
+            rule.met ? "text-emerald-600" : "text-destructive",
+          )}
+        >
+          {rule.met
+            ? <CheckCircle2 className="size-3 shrink-0" />
+            : <XCircle className="size-3 shrink-0" />}
+          {rule.label}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AuthPage() {
@@ -117,8 +162,17 @@ export default function AuthPage() {
 
   const registerForm = useForm<RegisterData>({
     resolver: zodResolver(RegisterSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   })
+
+  const loginPassword     = loginForm.watch("password")
+  const registerPassword  = registerForm.watch("password")
+  const registerConfirm   = registerForm.watch("confirmPassword")
+
+  const registerReady =
+    allRulesMet(registerPassword) &&
+    registerConfirm.length > 0 &&
+    registerPassword === registerConfirm
 
   function onLogin(data: LoginData) {
     startLogin(async () => {
@@ -148,10 +202,7 @@ export default function AuthPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-pink-50 via-violet-50/60 to-slate-100 p-4">
       {/* Background decoration */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 size-96 rounded-full bg-pink-400/10 blur-3xl" />
         <div className="absolute -bottom-40 -left-40 size-96 rounded-full bg-violet-300/20 blur-3xl" />
         <div className="absolute top-1/2 left-1/2 size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-200/10 blur-3xl" />
@@ -182,12 +233,9 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <div className="mb-5">
                   <h2 className="text-lg font-semibold text-foreground">Bienvenido de vuelta</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Ingresá con tu cuenta para continuar
-                  </p>
+                  <p className="text-sm text-muted-foreground">Ingresá con tu cuenta para continuar</p>
                 </div>
 
-                {/* Google OAuth button */}
                 <a
                   href="/api/auth/google"
                   className="mb-4 flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
@@ -229,6 +277,7 @@ export default function AuthPage() {
                       placeholder="••••••••"
                       {...loginForm.register("password")}
                     />
+                    <PasswordChecklist password={loginPassword} />
                     <FieldError message={loginForm.formState.errors.password?.message} />
                   </div>
 
@@ -257,12 +306,9 @@ export default function AuthPage() {
               <TabsContent value="register">
                 <div className="mb-5">
                   <h2 className="text-lg font-semibold text-foreground">Creá tu cuenta</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Completá los datos para comenzar
-                  </p>
+                  <p className="text-sm text-muted-foreground">Completá los datos para comenzar</p>
                 </div>
 
-                {/* Google OAuth button */}
                 <a
                   href="/api/auth/google"
                   className="mb-4 flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
@@ -273,11 +319,7 @@ export default function AuthPage() {
 
                 <OrDivider />
 
-                <form
-                  onSubmit={registerForm.handleSubmit(onRegister)}
-                  className="mt-4 space-y-4"
-                  noValidate
-                >
+                <form onSubmit={registerForm.handleSubmit(onRegister)} className="mt-4 space-y-4" noValidate>
                   {/* Name */}
                   <div className="space-y-1.5">
                     <Label htmlFor="register-name" className="text-sm font-medium">
@@ -327,13 +369,40 @@ export default function AuthPage() {
                       placeholder="Mínimo 6 caracteres"
                       {...registerForm.register("password")}
                     />
+                    <PasswordChecklist password={registerPassword} />
                     <FieldError message={registerForm.formState.errors.password?.message} />
+                  </div>
+
+                  {/* Confirm password */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="register-confirm" className="text-sm font-medium">
+                      Confirmar contraseña
+                    </Label>
+                    <PasswordInput
+                      id="register-confirm"
+                      autoComplete="new-password"
+                      placeholder="Repetí la contraseña"
+                      {...registerForm.register("confirmPassword")}
+                    />
+                    {registerConfirm.length > 0 && registerPassword !== registerConfirm && (
+                      <p className="flex items-center gap-1.5 text-xs text-destructive">
+                        <XCircle className="size-3 shrink-0" />
+                        Las contraseñas no coinciden
+                      </p>
+                    )}
+                    {registerConfirm.length > 0 && registerPassword === registerConfirm && allRulesMet(registerPassword) && (
+                      <p className="flex items-center gap-1.5 text-xs text-emerald-600">
+                        <CheckCircle2 className="size-3 shrink-0" />
+                        Las contraseñas coinciden
+                      </p>
+                    )}
+                    <FieldError message={registerForm.formState.errors.confirmPassword?.message} />
                   </div>
 
                   <Button
                     type="submit"
                     className="mt-2 w-full transition-all duration-300 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20"
-                    disabled={registerPending}
+                    disabled={registerPending || !registerReady}
                   >
                     {registerPending ? "Creando cuenta…" : "Crear Cuenta"}
                   </Button>

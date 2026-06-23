@@ -16,10 +16,11 @@ export async function GET(
       where: { userId: session.id, monthKey },
     })
     if (!budget) return NextResponse.json(null, { status: 404 })
-    return NextResponse.json(budget)
+    const { userId: _uid, ...safeData } = budget
+    return NextResponse.json(safeData)
   } catch (err) {
     console.error("[budget GET] error:", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
 
@@ -48,10 +49,11 @@ export async function PUT(
           data: { userId: session.id, monthKey, income, fixedItems, variableItems, savingsItems, creditCards },
         })
 
-    return NextResponse.json(budget)
+    const { userId: _uid2, ...safeBudget } = budget
+    return NextResponse.json(safeBudget)
   } catch (err) {
     console.error("[budget PUT] error:", err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
   }
 }
 

@@ -9,6 +9,16 @@ export async function GET() {
   const investments = await prisma.investment.findMany({
     where: { userId: session.id },
     orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      cafciId: true,
+      name: true,
+      ticker: true,
+      currency: true,
+      currentPrice: true,
+      priceDate: true,
+      createdAt: true,
+    },
   })
   return NextResponse.json(investments)
 }

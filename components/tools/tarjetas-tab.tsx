@@ -752,6 +752,7 @@ export function TarjetasTab() {
                   axisLine={false}
                 />
                 <YAxis
+                  domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.25)]}
                   tickFormatter={(v) =>
                     v >= 1_000_000
                       ? `$${(v / 1_000_000).toFixed(1)}M`
