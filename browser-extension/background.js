@@ -1,4 +1,4 @@
-const APP_ORIGIN = "http://localhost:3000"
+const APP_ORIGIN = "https://vaulty-jet.vercel.app"
 
 // Injected into the page's isolated world via chrome.scripting — this runs
 // outside the page's own CSP (script-src), which is what blocks plain
