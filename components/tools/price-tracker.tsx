@@ -487,9 +487,20 @@ export function PriceTrackerTab({ initialProducts }: Props) {
             La extensión del navegador te permite agregar cualquier producto a tu wishlist con un solo clic,
             sin necesidad de copiar links ni precios manualmente.
           </p>
+          <a
+            href="/vaulty-extension.zip"
+            download="vaulty-extension.zip"
+            className="inline-flex w-fit items-center gap-1.5 rounded-md bg-pink-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-pink-600 transition-colors"
+          >
+            Descargar extensión (.zip)
+          </a>
           <ol className="flex flex-col gap-1.5 text-xs text-pink-700 dark:text-pink-400">
             <li className="flex gap-2">
               <span className="font-bold shrink-0">1.</span>
+              <span>Descargá el archivo <strong>.zip</strong> con el botón de arriba y descomprimilo en tu computadora.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="font-bold shrink-0">2.</span>
               <span>
                 Abrí{" "}
                 <code className="rounded bg-pink-200/70 px-1 py-0.5 font-mono text-pink-900 dark:bg-pink-900/50 dark:text-pink-200">
@@ -503,25 +514,21 @@ export function PriceTrackerTab({ initialProducts }: Props) {
               </span>
             </li>
             <li className="flex gap-2">
-              <span className="font-bold shrink-0">2.</span>
+              <span className="font-bold shrink-0">3.</span>
               <span>Activá el <strong>Modo desarrollador</strong> (toggle en la esquina superior derecha).</span>
             </li>
             <li className="flex gap-2">
-              <span className="font-bold shrink-0">3.</span>
+              <span className="font-bold shrink-0">4.</span>
               <span>
-                Hacé clic en <strong>Cargar descomprimida</strong> y seleccioná la carpeta{" "}
-                <code className="rounded bg-pink-200/70 px-1 py-0.5 font-mono text-pink-900 dark:bg-pink-900/50 dark:text-pink-200">
-                  browser-extension
-                </code>{" "}
-                del proyecto.
+                Hacé clic en <strong>Cargar descomprimida</strong> y seleccioná la carpeta descomprimida.
               </span>
             </li>
             <li className="flex gap-2">
-              <span className="font-bold shrink-0">4.</span>
+              <span className="font-bold shrink-0">5.</span>
               <span>Fijá el ícono en la barra del navegador para tenerlo siempre a mano.</span>
             </li>
             <li className="flex gap-2">
-              <span className="font-bold shrink-0">5.</span>
+              <span className="font-bold shrink-0">6.</span>
               <span>
                 Entrá a la página de cualquier producto y hacé clic en el ícono de la extensión — se agrega
                 directo a tu wishlist.
