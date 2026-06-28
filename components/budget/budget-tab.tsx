@@ -17,6 +17,8 @@ import {
   Pencil,
   Check,
   Coffee,
+  RotateCcw,
+  Loader2,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -310,25 +312,43 @@ export function BudgetTab() {
 
   const loadedRef = useRef(false)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const appStateRef = useRef(appState)
   appStateRef.current = appState
 
-  async function saveBudget(monthKey: string, data: MonthData) {
-    const res = await fetch(`/api/budget/${monthKey}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        income: data.income,
-        fixedItems: data.fixedItems,
-        variableItems: data.variableItems,
-        savingsItems: data.savingsItems,
-        creditCards: data.creditCards,
-      }),
-      keepalive: true,
-    })
-    if (!res.ok && res.status !== 401) {
-      const body = await res.text().catch(() => "")
-      console.error(`[budget] save failed ${res.status}:`, body)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+
+  async function saveBudget(monthKey: string, data: MonthData): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/budget/${monthKey}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          income: data.income,
+          fixedItems: data.fixedItems,
+          variableItems: data.variableItems,
+          savingsItems: data.savingsItems,
+          creditCards: data.creditCards,
+        }),
+        keepalive: true,
+      })
+      return res.ok || res.status === 401
+    } catch {
+      return false
+    }
+  }
+
+  async function retrySave() {
+    setSaveStatus("saving")
+    const { currentMonthKey, monthsData } = appStateRef.current
+    const data = monthsData[currentMonthKey]
+    if (!data) return
+    const ok = await saveBudget(currentMonthKey, data)
+    if (ok) {
+      setSaveStatus("saved")
+      savedTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3000)
+    } else {
+      setSaveStatus("error")
     }
   }
 
@@ -381,15 +401,19 @@ export function BudgetTab() {
   // Auto-save the current month whenever state changes (1.5 s debounce)
   useEffect(() => {
     if (!loadedRef.current) return
+    setSaveStatus("saving")
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
       const { currentMonthKey, monthsData } = appState
       const data = monthsData[currentMonthKey]
       if (!data) return
-      try {
-        await saveBudget(currentMonthKey, data)
-      } catch (err) {
-        console.error("[budget] auto-save error:", err)
+      const ok = await saveBudget(currentMonthKey, data)
+      if (ok) {
+        setSaveStatus("saved")
+        savedTimerRef.current = setTimeout(() => setSaveStatus("idle"), 3000)
+      } else {
+        setSaveStatus("error")
       }
       saveTimerRef.current = null
     }, 1500)
@@ -750,10 +774,11 @@ export function BudgetTab() {
         {/* Left column: income card (includes daily allowance) */}
         <div className="flex flex-col h-full lg:col-span-2">
           <Card className="h-full transition-all duration-300 hover:-translate-y-1 hover:ring-violet-300 hover:shadow-md hover:shadow-violet-100/60">
-            <CardContent className="flex flex-col h-full justify-between p-6">
+            <CardContent className="flex flex-col gap-4 p-6">
 
-              {/* 1 — Month navigation */}
-              <div className="flex items-center justify-center gap-2 border-b border-border pb-4">
+              {/* 1 — Month navigation + save status */}
+              <div className="flex flex-col gap-1.5 border-b border-border pb-4">
+              <div className="flex items-center justify-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -773,6 +798,36 @@ export function BudgetTab() {
                 >
                   <ChevronRight className="size-4" />
                 </Button>
+              </div>
+              {saveStatus !== "idle" && (
+                <div className="flex items-center justify-center gap-1.5 text-xs">
+                  {saveStatus === "saving" && (
+                    <>
+                      <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                      <span className="text-muted-foreground">Guardando...</span>
+                    </>
+                  )}
+                  {saveStatus === "saved" && (
+                    <>
+                      <Check className="size-3 text-green-600" />
+                      <span className="text-green-600">Guardado</span>
+                    </>
+                  )}
+                  {saveStatus === "error" && (
+                    <>
+                      <AlertTriangle className="size-3 text-destructive" />
+                      <span className="text-destructive">Error al guardar</span>
+                      <button
+                        onClick={retrySave}
+                        className="flex items-center gap-1 text-primary underline underline-offset-2"
+                      >
+                        <RotateCcw className="size-3" />
+                        Reintentar
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
               </div>
 
               {/* 2 — Ingreso mensual */}
@@ -1022,27 +1077,29 @@ export function BudgetTab() {
                             <TableCell>
                               <div className="flex items-center justify-center gap-1">
                                 <Input
-                                  type="number"
-                                  min={1}
-                                  max={editQuotaTotal}
-                                  value={editQuotaCurrent}
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={editQuotaCurrent === 0 ? "" : String(editQuotaCurrent)}
                                   onChange={(e) => {
-                                    const v = Math.max(1, parseInt(e.target.value) || 1)
-                                    setEditQuotaCurrent(Math.min(v, editQuotaTotal))
+                                    const raw = e.target.value.replace(/\D/g, "")
+                                    setEditQuotaCurrent(raw === "" ? 0 : parseInt(raw, 10))
                                   }}
-                                  className="h-8 w-10 px-1 text-center text-sm"
+                                  onBlur={() => setEditQuotaCurrent((v) => Math.max(1, v))}
+                                  className="h-8 w-14 px-1 text-center text-sm"
                                 />
                                 <span className="text-xs text-muted-foreground">/</span>
                                 <Input
-                                  type="number"
-                                  min={1}
-                                  value={editQuotaTotal}
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={editQuotaTotal === 0 ? "" : String(editQuotaTotal)}
                                   onChange={(e) => {
-                                    const v = Math.max(1, parseInt(e.target.value) || 1)
-                                    setEditQuotaTotal(v)
-                                    if (editQuotaCurrent > v) setEditQuotaCurrent(v)
+                                    const raw = e.target.value.replace(/\D/g, "")
+                                    setEditQuotaTotal(raw === "" ? 0 : parseInt(raw, 10))
                                   }}
-                                  className="h-8 w-10 px-1 text-center text-sm"
+                                  onBlur={() => setEditQuotaTotal((v) => Math.max(1, v))}
+                                  className="h-8 w-14 px-1 text-center text-sm"
                                 />
                               </div>
                             </TableCell>
@@ -1124,27 +1181,29 @@ export function BudgetTab() {
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
                             <Input
-                              type="number"
-                              min={1}
-                              max={newQuotaTotal}
-                              value={newQuotaCurrent}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={newQuotaCurrent === 0 ? "" : String(newQuotaCurrent)}
                               onChange={(e) => {
-                                const v = Math.max(1, parseInt(e.target.value) || 1)
-                                setNewQuotaCurrent(Math.min(v, newQuotaTotal))
+                                const raw = e.target.value.replace(/\D/g, "")
+                                setNewQuotaCurrent(raw === "" ? 0 : parseInt(raw, 10))
                               }}
-                              className="h-8 w-10 px-1 text-center text-sm"
+                              onBlur={() => setNewQuotaCurrent((v) => Math.max(1, v))}
+                              className="h-8 w-14 px-1 text-center text-sm"
                             />
                             <span className="text-xs text-muted-foreground">/</span>
                             <Input
-                              type="number"
-                              min={1}
-                              value={newQuotaTotal}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={newQuotaTotal === 0 ? "" : String(newQuotaTotal)}
                               onChange={(e) => {
-                                const v = Math.max(1, parseInt(e.target.value) || 1)
-                                setNewQuotaTotal(v)
-                                if (newQuotaCurrent > v) setNewQuotaCurrent(v)
+                                const raw = e.target.value.replace(/\D/g, "")
+                                setNewQuotaTotal(raw === "" ? 0 : parseInt(raw, 10))
                               }}
-                              className="h-8 w-10 px-1 text-center text-sm"
+                              onBlur={() => setNewQuotaTotal((v) => Math.max(1, v))}
+                              className="h-8 w-14 px-1 text-center text-sm"
                             />
                           </div>
                         </TableCell>

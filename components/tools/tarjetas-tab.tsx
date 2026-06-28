@@ -123,6 +123,7 @@ function buildProjection(
   cards: CreditCardEntry[],
   simPurchases: SimulatedPurchase[],
   startKey: string,
+  actualMonthCards: Record<string, CreditCardEntry[]>,
 ): ProjectionPoint[] {
   return Array.from({ length: 12 }, (_, k) => {
     const key = addMonths(startKey, k)
@@ -130,19 +131,37 @@ function buildProjection(
     let real = 0
     let simulated = 0
 
-    // Compras reales desde tarjetas
-    for (const card of cards) {
-      for (const p of card.purchases) {
-        const monthQuota = p.quotaCurrent + k
-        if (monthQuota <= p.quotaTotal) {
+    // Si hay datos reales para este mes, usarlos directamente
+    const sourceCards = key in actualMonthCards ? actualMonthCards[key] : k === 0 ? cards : null
+
+    if (sourceCards !== null) {
+      for (const card of sourceCards) {
+        for (const p of card.purchases) {
           breakdown.push({
             cardName: card.name,
             concept: p.concept,
-            quotaLabel: `${monthQuota}/${p.quotaTotal}`,
+            quotaLabel: `${p.quotaCurrent}/${p.quotaTotal}`,
             amount: p.amount,
             isSimulated: false,
           })
           real += p.amount
+        }
+      }
+    } else {
+      // Proyección desde el mes actual para meses sin datos en DB
+      for (const card of cards) {
+        for (const p of card.purchases) {
+          const monthQuota = p.quotaCurrent + k
+          if (monthQuota <= p.quotaTotal) {
+            breakdown.push({
+              cardName: card.name,
+              concept: p.concept,
+              quotaLabel: `${monthQuota}/${p.quotaTotal}`,
+              amount: p.amount,
+              isSimulated: false,
+            })
+            real += p.amount
+          }
         }
       }
     }
@@ -222,6 +241,7 @@ type AmountMode = "cuota" | "total"
 
 export function TarjetasTab() {
   const [cards, setCards] = useState<CreditCardEntry[]>([])
+  const [allMonthCards, setAllMonthCards] = useState<Record<string, CreditCardEntry[]>>({})
   const [loading, setLoading] = useState(true)
 
   // Estado local del simulador — nunca va a la DB
@@ -247,21 +267,26 @@ export function TarjetasTab() {
   async function fetchData() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/budget/${startKey}`)
-      if (res.ok) {
-        const data = await res.json()
+      const monthKeys = Array.from({ length: 12 }, (_, k) => addMonths(startKey, k))
+      const results = await Promise.all(
+        monthKeys.map((key) => fetch(`/api/budget/${key}`).then((r) => (r.ok ? r.json() : null)).catch(() => null))
+      )
+
+      const monthCardsMap: Record<string, CreditCardEntry[]> = {}
+      results.forEach((data, k) => {
+        if (!data) return
         const rawCards = (data.creditCards ?? []) as Record<string, unknown>[]
-        setCards(
-          rawCards.map((card) => ({
-            ...(card as unknown as CreditCardEntry),
-            purchases: ((card.purchases as Record<string, unknown>[]) ?? []).map(normalizePurchase),
-          })),
-        )
-      } else {
-        setCards([])
-      }
+        monthCardsMap[monthKeys[k]] = rawCards.map((card) => ({
+          ...(card as unknown as CreditCardEntry),
+          purchases: ((card.purchases as Record<string, unknown>[]) ?? []).map(normalizePurchase),
+        }))
+      })
+
+      setCards(monthCardsMap[startKey] ?? [])
+      setAllMonthCards(monthCardsMap)
     } catch {
       setCards([])
+      setAllMonthCards({})
     }
     setLoading(false)
   }
@@ -336,7 +361,7 @@ export function TarjetasTab() {
   }
 
   // Proyección calculada on-the-fly
-  const projection = buildProjection(cards, simPurchases, startKey)
+  const projection = buildProjection(cards, simPurchases, startKey, allMonthCards)
   const hasSims = simPurchases.length > 0
   const hasData = projection.some((p) => p.total > 0)
 
