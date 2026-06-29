@@ -125,43 +125,39 @@ function buildProjection(
   startKey: string,
   actualMonthCards: Record<string, CreditCardEntry[]>,
 ): ProjectionPoint[] {
-  return Array.from({ length: 12 }, (_, k) => {
-    const key = addMonths(startKey, k)
+  const monthKeys = Array.from({ length: 12 }, (_, k) => addMonths(startKey, k))
+
+  return monthKeys.map((key, k) => {
     const breakdown: BreakdownItem[] = []
     let real = 0
     let simulated = 0
 
-    // Si hay datos reales para este mes, usarlos directamente
-    const sourceCards = key in actualMonthCards ? actualMonthCards[key] : k === 0 ? cards : null
+    // Buscar el mes más reciente con datos reales en o antes del mes k
+    // y proyectar hacia adelante desde ese punto
+    let sourceCards: CreditCardEntry[] = cards
+    let sourceOffset = k
 
-    if (sourceCards !== null) {
-      for (const card of sourceCards) {
-        for (const p of card.purchases) {
+    for (let j = k; j >= 0; j--) {
+      const jKey = monthKeys[j]
+      if (jKey in actualMonthCards) {
+        sourceCards = actualMonthCards[jKey]
+        sourceOffset = k - j
+        break
+      }
+    }
+
+    for (const card of sourceCards) {
+      for (const p of card.purchases) {
+        const monthQuota = p.quotaCurrent + sourceOffset
+        if (monthQuota <= p.quotaTotal) {
           breakdown.push({
             cardName: card.name,
             concept: p.concept,
-            quotaLabel: `${p.quotaCurrent}/${p.quotaTotal}`,
+            quotaLabel: `${monthQuota}/${p.quotaTotal}`,
             amount: p.amount,
             isSimulated: false,
           })
           real += p.amount
-        }
-      }
-    } else {
-      // Proyección desde el mes actual para meses sin datos en DB
-      for (const card of cards) {
-        for (const p of card.purchases) {
-          const monthQuota = p.quotaCurrent + k
-          if (monthQuota <= p.quotaTotal) {
-            breakdown.push({
-              cardName: card.name,
-              concept: p.concept,
-              quotaLabel: `${monthQuota}/${p.quotaTotal}`,
-              amount: p.amount,
-              isSimulated: false,
-            })
-            real += p.amount
-          }
         }
       }
     }
