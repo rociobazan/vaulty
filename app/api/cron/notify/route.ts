@@ -33,8 +33,9 @@ export async function GET(req: NextRequest) {
     const targetMonth = targetDate.getMonth() + 1     // 1–12
     const targetYear  = targetDate.getFullYear()
 
-    // YYYY-MM formateado para buscar el presupuesto del mes correcto
-    const monthKey = `${targetYear}-${String(targetMonth).padStart(2, "0")}`
+    const pad = (n: number) => String(n).padStart(2, "0")
+    const monthKey      = `${targetYear}-${pad(targetMonth)}`
+    const targetDateStr = `${targetYear}-${pad(targetMonth)}-${pad(targetDay)}`
 
     // Buscar todos los presupuestos del mes objetivo
     const budgets = await prisma.monthBudget.findMany({
@@ -70,7 +71,6 @@ export async function GET(req: NextRequest) {
       }
 
       // ── Tarjetas: tienen dueDate (YYYY-MM-DD) ───────────────────────────
-      const targetDateStr = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`
       const creditCards = budget.creditCards as {
         id: string; name: string; dueDate?: string; purchases?: unknown[]
       }[]
