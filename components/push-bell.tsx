@@ -37,7 +37,9 @@ export function PushBell() {
     setState("loading")
     try {
       const reg = await navigator.serviceWorker.ready
-      const { publicKey } = await fetch("/api/push/vapid-public-key").then((r) => r.json())
+      const res = await fetch("/api/push/vapid-public-key")
+      const { publicKey } = await res.json()
+      if (!publicKey) throw new Error("VAPID_PUBLIC_KEY no configurada en el servidor")
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -56,9 +58,11 @@ export function PushBell() {
 
       setState("subscribed")
       toast.success("Notificaciones activadas. Te avisaremos 2 días antes de cada vencimiento.")
-    } catch {
+    } catch (err) {
+      console.error("[PushBell] subscribe error:", err)
       setState("unsubscribed")
-      toast.error("No se pudieron activar las notificaciones.")
+      const detail = err instanceof Error ? err.message : String(err)
+      toast.error(`No se pudieron activar las notificaciones: ${detail}`)
     }
   }
 
