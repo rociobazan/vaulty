@@ -2,21 +2,27 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendPush } from "@/lib/web-push"
 
-// Cuántos días antes avisar
-const DAYS_AHEAD = 2
+// Avisar 2 días antes Y el mismo día del vencimiento
+const ALERT_OFFSETS = [2, 0]
 
 export const dynamic = "force-dynamic"
 
 function todayAR(): Date {
-  // Ajusta a GMT-3 (Argentina)
   const now = new Date()
   now.setHours(now.getHours() - 3)
   return now
 }
 
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+const pad = (n: number) => String(n).padStart(2, "0")
+
 // GET /api/cron/notify  — llamado por Vercel Cron todos los días a las 9am
 export async function GET(req: NextRequest) {
-  // Verificar secret — Vercel lo envía como "Authorization: Bearer <CRON_SECRET>"
   const authHeader = req.headers.get("authorization")
   const bearerSecret = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
   const querySecret = req.nextUrl.searchParams.get("secret")
@@ -27,87 +33,88 @@ export async function GET(req: NextRequest) {
 
   try {
     const today = todayAR()
-    const targetDate = new Date(today)
-    targetDate.setDate(targetDate.getDate() + DAYS_AHEAD)
-    const targetDay   = targetDate.getDate()          // 1–31
-    const targetMonth = targetDate.getMonth() + 1     // 1–12
-    const targetYear  = targetDate.getFullYear()
-
-    const pad = (n: number) => String(n).padStart(2, "0")
-    const monthKey      = `${targetYear}-${pad(targetMonth)}`
-    const targetDateStr = `${targetYear}-${pad(targetMonth)}-${pad(targetDay)}`
-
-    // Buscar todos los presupuestos del mes objetivo
-    const budgets = await prisma.monthBudget.findMany({
-      where: { monthKey },
-      select: { userId: true, fixedItems: true, creditCards: true },
-    })
-
     let sent = 0
     let skipped = 0
 
-    for (const budget of budgets) {
-      if (!budget.userId) continue
+    for (const offset of ALERT_OFFSETS) {
+      const targetDate   = addDays(today, offset)
+      const targetDay    = targetDate.getDate()
+      const targetMonth  = targetDate.getMonth() + 1
+      const targetYear   = targetDate.getFullYear()
+      const monthKey     = `${targetYear}-${pad(targetMonth)}`
+      const dateStr      = `${targetYear}-${pad(targetMonth)}-${pad(targetDay)}`
 
-      const subs = await prisma.pushSubscription.findMany({
-        where: { userId: budget.userId },
+      const msgSuffix = offset === 0
+        ? `¡Hoy es el día!`
+        : `Vence en ${offset} días (${dateStr}).`
+
+      const budgets = await prisma.monthBudget.findMany({
+        where: { monthKey },
+        select: { userId: true, fixedItems: true, creditCards: true },
       })
-      if (subs.length === 0) continue
 
-      const notifications: { title: string; body: string; tag: string }[] = []
+      for (const budget of budgets) {
+        if (!budget.userId) continue
 
-      // ── Gastos fijos: tienen dueDay (1-31) ───────────────────────────────
-      const fixedItems = budget.fixedItems as {
-        id: string; label: string; value: number; dueDay?: number
-      }[]
-      for (const item of fixedItems) {
-        if (item.dueDay === targetDay) {
-          notifications.push({
-            title: `📋 Vencimiento: ${item.label}`,
-            body:  `Vence en ${DAYS_AHEAD} días (día ${targetDay}). Monto: $${item.value.toLocaleString("es-AR")}`,
-            tag:   `fixed-${item.id}-${monthKey}`,
-          })
-        }
-      }
+        const subs = await prisma.pushSubscription.findMany({
+          where: { userId: budget.userId },
+        })
+        if (subs.length === 0) continue
 
-      // ── Tarjetas: tienen dueDate (YYYY-MM-DD) ───────────────────────────
-      const creditCards = budget.creditCards as {
-        id: string; name: string; dueDate?: string; purchases?: unknown[]
-      }[]
-      for (const card of creditCards) {
-        if (card.dueDate === targetDateStr) {
-          notifications.push({
-            title: `💳 Vencimiento tarjeta: ${card.name}`,
-            body:  `Tu tarjeta ${card.name} vence en ${DAYS_AHEAD} días (${targetDateStr}).`,
-            tag:   `card-${card.id}-${monthKey}`,
-          })
-        }
-      }
+        const notifications: { title: string; body: string; tag: string }[] = []
 
-      // Mandar cada notificación a todas las suscripciones del usuario
-      for (const notif of notifications) {
-        for (const sub of subs) {
-          try {
-            await sendPush(sub, {
-              title: notif.title,
-              body:  notif.body,
-              icon:  "/apple-icon.png",
-              tag:   notif.tag,
+        // ── Gastos fijos ──────────────────────────────────────────────────
+        const fixedItems = budget.fixedItems as {
+          id: string; label: string; value: number; dueDay?: number
+        }[]
+        for (const item of fixedItems) {
+          if (item.dueDay === targetDay) {
+            notifications.push({
+              title: offset === 0 ? `📋 Vence hoy: ${item.label}` : `📋 Próximo vencimiento: ${item.label}`,
+              body:  `${msgSuffix} Monto: $${item.value.toLocaleString("es-AR")}`,
+              tag:   `fixed-${item.id}-${monthKey}-d${offset}`,
             })
-            sent++
-          } catch (err: unknown) {
-            // Si la suscripción expiró (410) la eliminamos
-            const status = (err as { statusCode?: number }).statusCode
-            if (status === 410 || status === 404) {
-              await prisma.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } })
+          }
+        }
+
+        // ── Tarjetas ──────────────────────────────────────────────────────
+        const creditCards = budget.creditCards as {
+          id: string; name: string; dueDate?: string
+        }[]
+        for (const card of creditCards) {
+          if (card.dueDate === dateStr) {
+            notifications.push({
+              title: offset === 0 ? `💳 Vence hoy: ${card.name}` : `💳 Próximo vencimiento: ${card.name}`,
+              body:  `Tu tarjeta ${card.name}. ${msgSuffix}`,
+              tag:   `card-${card.id}-${monthKey}-d${offset}`,
+            })
+          }
+        }
+
+        // ── Enviar ────────────────────────────────────────────────────────
+        for (const notif of notifications) {
+          for (const sub of subs) {
+            try {
+              await sendPush(sub, {
+                title: notif.title,
+                body:  notif.body,
+                icon:  "/icon-192.png",
+                tag:   notif.tag,
+              })
+              sent++
+            } catch (err: unknown) {
+              const status = (err as { statusCode?: number }).statusCode
+              if (status === 410 || status === 404) {
+                await prisma.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } })
+              }
+              skipped++
             }
-            skipped++
           }
         }
       }
     }
 
-    return NextResponse.json({ ok: true, sent, skipped, targetDate: targetDateStr })
+    return NextResponse.json({ ok: true, sent, skipped })
   } catch (err) {
     console.error("[GET /api/cron/notify]", err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
