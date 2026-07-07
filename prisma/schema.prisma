@@ -76,6 +76,19 @@ model User {
   updatedAt         DateTime @updatedAt
 }
 
+// ── Metas de Ahorro ───────────────────────────────────────────────────────────
+
+model Goal {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String    @db.ObjectId
+  title         String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  deadline      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 // ── Wishlist ──────────────────────────────────────────────────────────────────
 
 model TrackedProduct {

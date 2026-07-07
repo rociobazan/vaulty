@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Wallet, TrendingUp, Bookmark, LayoutList } from "lucide-react"
+import { Wallet, TrendingUp, Bookmark, LayoutList, PiggyBank } from "lucide-react"
 import { toast } from "sonner"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,6 +9,7 @@ import { BudgetTab } from "@/components/budget/budget-tab"
 import { InversionesTab, type Fund } from "@/components/tools/balanz-monitor"
 import { PriceTrackerTab, type TrackedProduct } from "@/components/tools/price-tracker"
 import { TarjetasTab } from "@/components/tools/tarjetas-tab"
+import { GoalsTab } from "@/components/tools/goals-tab"
 
 interface Props {
   initialInvestments: Fund[]
@@ -57,6 +58,11 @@ export function DashboardContent({ initialInvestments, initialProducts }: Props)
           <span className="hidden sm:inline">Tarjetas</span>
           <span className="sm:hidden">Tarj.</span>
         </TabsTrigger>
+        <TabsTrigger value="objetivos" className="flex-1 gap-1.5 rounded-lg py-2.5 text-xs sm:text-sm">
+          <PiggyBank className="size-4 shrink-0" />
+          <span className="hidden sm:inline">Objetivos</span>
+          <span className="sm:hidden">Obj.</span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="presupuesto">
@@ -70,6 +76,9 @@ export function DashboardContent({ initialInvestments, initialProducts }: Props)
       </TabsContent>
       <TabsContent value="tarjetas">
         {tab === "tarjetas" && <TarjetasTab />}
+      </TabsContent>
+      <TabsContent value="objetivos">
+        {tab === "objetivos" && <GoalsTab />}
       </TabsContent>
     </Tabs>
   )
