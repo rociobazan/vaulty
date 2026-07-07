@@ -89,6 +89,17 @@ model Goal {
   updatedAt     DateTime  @updatedAt
 }
 
+// ── Push Subscriptions ────────────────────────────────────────────────────────
+
+model PushSubscription {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
 // ── Wishlist ──────────────────────────────────────────────────────────────────
 
 model TrackedProduct {

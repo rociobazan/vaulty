@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { DashboardContent } from "@/components/dashboard-content"
+import { PushBell } from "@/components/push-bell"
 import type { Fund } from "@/components/tools/balanz-monitor"
 import type { TrackedProduct } from "@/components/tools/price-tracker"
 
@@ -90,13 +91,16 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <div className="mb-6 flex flex-col gap-1">
-        <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground">
-          Tu centro de comando financiero
-        </h1>
-        <p className="text-pretty text-sm text-muted-foreground">
-          Planificá cada peso con presupuesto base cero y tomá mejores decisiones de compra.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-balance text-2xl font-bold tracking-tight text-foreground">
+            Tu centro de comando financiero
+          </h1>
+          <p className="text-pretty text-sm text-muted-foreground">
+            Planificá cada peso con presupuesto base cero y tomá mejores decisiones de compra.
+          </p>
+        </div>
+        <PushBell />
       </div>
       <DashboardContent initialInvestments={investments} initialProducts={products} />
     </main>

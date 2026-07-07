@@ -45,6 +45,7 @@ interface ExpenseItem {
   id: string
   label: string
   value: number
+  dueDay?: number  // 1-31, solo para gastos fijos
 }
 
 interface Purchase {
@@ -60,6 +61,7 @@ interface CreditCardEntry {
   name: string
   colorClass: string
   purchases: Purchase[]
+  dueDate?: string  // YYYY-MM-DD, varía cada mes
 }
 
 interface MonthData {
@@ -201,11 +203,15 @@ function ExpenseList({
   onLabelChange,
   onValueChange,
   onDelete,
+  showDueDay,
+  onDueDayChange,
 }: {
   items: ExpenseItem[]
   onLabelChange: (id: string, label: string) => void
   onValueChange: (id: string, value: number) => void
   onDelete: (id: string) => void
+  showDueDay?: boolean
+  onDueDayChange?: (id: string, day: number | undefined) => void
 }) {
   return (
     <>
@@ -218,10 +224,33 @@ function ExpenseList({
               className="w-full rounded px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/40 focus:bg-muted/60 focus:outline-none focus:ring-1 focus:ring-primary/30"
               aria-label="Nombre del concepto"
             />
-            <MoneyInput
-              value={item.value}
-              onChange={(v) => onValueChange(item.id, v)}
-            />
+            <div className="flex gap-1.5">
+              <MoneyInput
+                value={item.value}
+                onChange={(v) => onValueChange(item.id, v)}
+                className="flex-1"
+              />
+              {showDueDay && (
+                <div className="flex flex-col gap-0.5">
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    placeholder="Día"
+                    value={item.dueDay ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? undefined : Math.min(31, Math.max(1, parseInt(e.target.value, 10)))
+                      onDueDayChange?.(item.id, v)
+                    }}
+                    className="h-9 w-14 rounded-md border border-input bg-background px-2 text-center text-xs focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    title="Día de vencimiento (1-31)"
+                  />
+                </div>
+              )}
+            </div>
+            {showDueDay && item.dueDay && (
+              <p className="text-[10px] text-violet-500">Vence el día {item.dueDay}</p>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -278,6 +307,7 @@ export function BudgetTab() {
   const [addingTo, setAddingTo] = useState<"fijos" | "variables" | "ahorro" | null>(null)
   const [newLabel, setNewLabel] = useState("")
   const [newValue, setNewValue] = useState(0)
+  const [newDueDay, setNewDueDay] = useState<number | undefined>(undefined)
   const [showAddCard, setShowAddCard] = useState(false)
   const [newCardName, setNewCardName] = useState("")
   const [addingPurchaseTo, setAddingPurchaseTo] = useState<string | null>(null)
@@ -551,7 +581,12 @@ export function BudgetTab() {
 
   function saveNewItem() {
     if (!newLabel.trim() || !addingTo) return
-    const item: ExpenseItem = { id: genId(), label: newLabel.trim(), value: newValue }
+    const item: ExpenseItem = {
+      id: genId(),
+      label: newLabel.trim(),
+      value: newValue,
+      ...(addingTo === "fijos" && newDueDay ? { dueDay: newDueDay } : {}),
+    }
     const key =
       addingTo === "fijos"
         ? "fixedItems"
@@ -566,6 +601,7 @@ export function BudgetTab() {
     setAddingTo(null)
     setNewLabel("")
     setNewValue(0)
+    setNewDueDay(undefined)
   }
 
   // ─── Credit card handlers ─────────────────────────────────────────────────
@@ -683,7 +719,24 @@ export function BudgetTab() {
           if (e.key === "Enter") saveNewItem()
         }}
       />
-      <MoneyInput value={newValue} onChange={setNewValue} />
+      <div className="flex gap-1.5">
+        <MoneyInput value={newValue} onChange={setNewValue} className="flex-1" />
+        {addingTo === "fijos" && (
+          <input
+            type="number"
+            min={1}
+            max={31}
+            placeholder="Día"
+            value={newDueDay ?? ""}
+            onChange={(e) => setNewDueDay(e.target.value === "" ? undefined : Math.min(31, Math.max(1, parseInt(e.target.value, 10))))}
+            className="h-9 w-14 rounded-md border border-input bg-background px-2 text-center text-xs focus:outline-none focus:ring-1 focus:ring-primary/30"
+            title="Día de vencimiento (opcional, 1-31)"
+          />
+        )}
+      </div>
+      {addingTo === "fijos" && (
+        <p className="text-[10px] text-muted-foreground">Día de vencimiento opcional (para notificaciones)</p>
+      )}
       <div className="flex gap-2">
         <Button size="sm" className="h-8 flex-1 text-xs" onClick={saveNewItem}>
           Guardar
@@ -748,6 +801,12 @@ export function BudgetTab() {
             }
             onDelete={(id) =>
               updateSection(sectionKey, (prev) => prev.filter((it) => it.id !== id))
+            }
+            showDueDay={sectionKey === "fixedItems"}
+            onDueDayChange={(id, day) =>
+              updateSection(sectionKey, (prev) =>
+                prev.map((it) => (it.id === id ? { ...it, dueDay: day } : it)),
+              )
             }
           />
           {extra}
@@ -1021,25 +1080,38 @@ export function BudgetTab() {
               className="overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:ring-violet-300 hover:shadow-md hover:shadow-violet-100/60"
             >
               {/* Pastel colored header */}
-              <div
-                className={cn(
-                  "flex items-center justify-between px-4 py-3",
-                  card.colorClass,
-                )}
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <CreditCard className="size-4" />
-                  {card.name}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="opacity-70 hover:bg-black/10 hover:opacity-100"
-                  onClick={() => deleteCreditCard(card.id)}
-                  aria-label={`Eliminar ${card.name}`}
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+              <div className={cn("flex flex-col gap-2 px-4 py-3", card.colorClass)}>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 font-semibold">
+                    <CreditCard className="size-4" />
+                    {card.name}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="opacity-70 hover:bg-black/10 hover:opacity-100"
+                    onClick={() => deleteCreditCard(card.id)}
+                    aria-label={`Eliminar ${card.name}`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-[11px] font-normal opacity-75">Vencimiento:</label>
+                  <input
+                    type="date"
+                    value={card.dueDate ?? ""}
+                    onChange={(e) =>
+                      updateSection("creditCards", (prev) =>
+                        prev.map((c) =>
+                          c.id === card.id ? { ...c, dueDate: e.target.value || undefined } : c,
+                        ),
+                      )
+                    }
+                    className="h-7 rounded border-0 bg-black/10 px-2 text-[11px] text-inherit focus:outline-none focus:ring-1 focus:ring-white/40"
+                    title="Fecha de vencimiento de esta tarjeta este mes"
+                  />
+                </div>
               </div>
 
               <div>
