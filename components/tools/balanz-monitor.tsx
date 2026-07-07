@@ -291,9 +291,18 @@ export function InversionesTab({ initialFunds }: Props) {
   const [syncCount, setSyncCount] = useState(0)
   const [expandedFundId, setExpandedFundId] = useState<string | null>(null)
   const [chartRange, setChartRange] = useState<"3m" | "6m" | "1y" | "all">("all")
+  const [mepRate, setMepRate] = useState<{ compra: number; venta: number; updatedAt: string } | null>(null)
   const mounted = useMounted()
 
   useEffect(() => { setFunds(initialFunds) }, [initialFunds])
+
+  // Fetch MEP dollar rate on mount
+  useEffect(() => {
+    fetch("/api/dolar-mep")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data && !data.error) setMepRate(data) })
+      .catch(() => {})
+  }, [])
 
   // Fetch real price history whenever a sync completes
   useEffect(() => {
@@ -363,6 +372,11 @@ export function InversionesTab({ initialFunds }: Props) {
   const hasUsdPnL = usdFunds.some((f) => f.avgBuyPrice != null)
   const hasArs = arsFunds.length > 0
   const hasUsd = usdFunds.length > 0
+
+  // Supertotal en ARS usando cotización MEP venta
+  const grandTotalARS = mepRate
+    ? arsTotal + usdTotal * mepRate.venta
+    : null
 
   // Weighted portfolio % return per currency (for footer)
   const arsWithCost = arsFunds.filter((f) => f.avgBuyPrice != null)
@@ -716,28 +730,64 @@ export function InversionesTab({ initialFunds }: Props) {
               Actualizando…
             </span>
           )}
+
+          {/* Supertotal en ARS */}
+          {hasUsd && grandTotalARS !== null && (
+            <>
+              <div className="hidden w-px self-stretch bg-border sm:block" />
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Supertotal · ARS
+                </p>
+                <p className="mt-1 text-4xl font-bold tracking-tight tabular-nums text-violet-600">
+                  {formatARS(Math.round(grandTotalARS))}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">
+                    ARS + USD × MEP
+                  </span>
+                  {mepRate && (
+                    <span className="text-xs text-muted-foreground">
+                      MEP: {formatARS(mepRate.venta)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0 sm:self-start">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={syncing || isPending}
-            onClick={doSync}
-            className="flex-1 gap-1.5 sm:flex-none"
-          >
-            <RefreshCw className={cn("size-3.5", syncing && "animate-spin")} />
-            Sincronizar
-          </Button>
-          <Button
-            onClick={openNewFund}
-            disabled={isPending}
-            className="flex-1 gap-2 transition-all duration-300 hover:bg-primary/90 sm:flex-none"
-          >
-            <Plus className="size-4" />
-            Agregar Transacción
-          </Button>
+        {/* MEP rate chip + Action buttons */}
+        <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:shrink-0 sm:self-start sm:items-end">
+          {mepRate && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2 text-xs sm:justify-start">
+              <span className="font-semibold text-violet-700">Dólar MEP</span>
+              <div className="flex items-center gap-3 text-violet-800">
+                <span>Compra <strong className="tabular-nums">{formatARS(mepRate.compra)}</strong></span>
+                <span>Venta <strong className="tabular-nums">{formatARS(mepRate.venta)}</strong></span>
+              </div>
+            </div>
+          )}
+          <div className="flex w-full items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={syncing || isPending}
+              onClick={doSync}
+              className="flex-1 gap-1.5 sm:flex-none"
+            >
+              <RefreshCw className={cn("size-3.5", syncing && "animate-spin")} />
+              Sincronizar
+            </Button>
+            <Button
+              onClick={openNewFund}
+              disabled={isPending}
+              className="flex-1 gap-2 transition-all duration-300 hover:bg-primary/90 sm:flex-none"
+            >
+              <Plus className="size-4" />
+              Agregar Transacción
+            </Button>
+          </div>
         </div>
       </div>
 
