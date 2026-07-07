@@ -17,26 +17,26 @@ export const metadata: Metadata = {
   generator: 'v0.app',
   icons: {
     icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
+      { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
+      { url: '/icon-dark-32x32.png',  media: '(prefers-color-scheme: dark)'  },
+      { url: '/icon.svg', type: 'image/svg+xml' },
     ],
     apple: '/apple-icon.png',
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Vaulty',
+    statusBarStyle: 'default',
   },
 }
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#10b981',
+  themeColor: '#a855f7',
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -50,7 +50,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
       style={{ colorScheme: "light" }}
     >
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {children}
         <Toaster richColors position="top-right" />
         {process.env.NODE_ENV === 'production' && <Analytics />}
