@@ -36,7 +36,22 @@ export function PushBell() {
   async function subscribe() {
     setState("loading")
     try {
+      // Request permission explicitly — required by some desktop browsers
+      if (Notification.permission !== "granted") {
+        const perm = await Notification.requestPermission()
+        if (perm !== "granted") {
+          setState("unsubscribed")
+          toast.error("Necesitás permitir las notificaciones en el navegador.")
+          return
+        }
+      }
+
       const reg = await navigator.serviceWorker.ready
+
+      // Clear any stale/conflicting subscription before creating a new one
+      const stale = await reg.pushManager.getSubscription()
+      if (stale) await stale.unsubscribe()
+
       const res = await fetch("/api/push/vapid-public-key")
       const { publicKey } = await res.json()
       if (!publicKey) throw new Error("VAPID_PUBLIC_KEY no configurada en el servidor")
