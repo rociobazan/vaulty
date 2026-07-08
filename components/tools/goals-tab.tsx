@@ -119,9 +119,7 @@ function GoalCard({
       </div>
 
       <CardContent className="flex flex-col gap-4 p-4">
-        <div className="flex items-center gap-3">
-          <PigIcon className="size-14 shrink-0" />
-          <div className="flex flex-1 flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-medium tabular-nums text-foreground">
                 {formatARS(goal.currentAmount)}
@@ -145,7 +143,6 @@ function GoalCard({
             )}>
               {pct.toFixed(1)}%
             </p>
-          </div>
         </div>
 
         {expanded && (
