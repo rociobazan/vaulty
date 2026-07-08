@@ -77,7 +77,16 @@ export function PushBell() {
       console.error("[PushBell] subscribe error:", err)
       setState("unsubscribed")
       const detail = err instanceof Error ? err.message : String(err)
-      toast.error(`No se pudieron activar las notificaciones: ${detail}`)
+      const isPushServiceError = detail.toLowerCase().includes("push service")
+      if (isPushServiceError) {
+        toast.error(
+          "El navegador no pudo conectarse al servicio de notificaciones. " +
+          "En Windows: verificá que las notificaciones de Chrome estén habilitadas en Configuración → Sistema → Notificaciones.",
+          { duration: 8000 }
+        )
+      } else {
+        toast.error(`No se pudieron activar las notificaciones: ${detail}`)
+      }
     }
   }
 
