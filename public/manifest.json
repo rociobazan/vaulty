@@ -4,7 +4,7 @@
   "description": "Tu centro de comando de finanzas personales: presupuesto base cero, inversiones y más.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#a855f7",
+  "background_color": "#ffffff",
   "theme_color": "#a855f7",
   "orientation": "portrait-primary",
   "categories": ["finance", "productivity"],
