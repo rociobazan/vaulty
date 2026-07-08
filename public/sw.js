@@ -1,4 +1,9 @@
-// Vaulty — Service Worker para Push Notifications
+// Vaulty — Service Worker para Push Notifications y PWA
+
+// fetch handler requerido por Chrome para reconocer el sitio como PWA instalable
+self.addEventListener("fetch", (event) => {
+  event.respondWith(fetch(event.request))
+})
 
 self.addEventListener("push", (event) => {
   if (!event.data) return
