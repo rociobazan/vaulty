@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description:
     'Tu centro de comando de finanzas personales: planificá tu presupuesto base cero y usá herramientas inteligentes para gastar mejor.',
   generator: 'v0.app',
+  // manifest as static file in public/ — bypasses Next.js auth routing
+  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: '32x32' },
