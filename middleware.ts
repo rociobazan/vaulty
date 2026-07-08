@@ -5,9 +5,14 @@ const secret = new TextEncoder().encode(
   process.env.SESSION_SECRET ?? "vaulty-local-dev-secret-change-in-production",
 )
 
-const PUBLIC_PATHS = new Set(["/login"])
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/sw.js",
+  "/manifest.json",
+  "/manifest.webmanifest",
+])
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isPublic = PUBLIC_PATHS.has(pathname)
   const token = request.cookies.get("nr_session")?.value
@@ -38,6 +43,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip Next.js internals, static files and API routes
-  matcher: ["/((?!api|_next/static|_next/image|favicon\\.ico|icon.*|apple-icon.*).*)"],
+  // Skip Next.js internals, static assets and PWA files
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon\\.ico|icon.*|apple-icon.*|sw\\.js|manifest\\.json|manifest\\.webmanifest).*)",
+  ],
 }
