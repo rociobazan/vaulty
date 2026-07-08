@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { RegisterSW } from '@/components/register-sw'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -50,6 +51,7 @@ export default function RootLayout({
       style={{ colorScheme: "light" }}
     >
       <body className="font-sans antialiased" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <RegisterSW />
         {children}
         <Toaster richColors position="top-right" />
         {process.env.NODE_ENV === 'production' && <Analytics />}
