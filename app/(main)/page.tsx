@@ -4,7 +4,6 @@ import { getSession } from "@/lib/session"
 import { DashboardContent } from "@/components/dashboard-content"
 import { PushBell } from "@/components/push-bell"
 import type { Fund } from "@/components/tools/balanz-monitor"
-import type { TrackedProduct } from "@/components/tools/price-tracker"
 
 export default async function DashboardPage() {
   const session = await getSession()
@@ -17,16 +16,10 @@ export default async function DashboardPage() {
 
   const investmentIds = rawInvestments.map((i) => i.id)
 
-  const [allTransactions, rawProducts] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { investmentId: { in: investmentIds } },
-      orderBy: { date: "asc" },
-    }),
-    prisma.trackedProduct.findMany({
-      where: { userId: session.id },
-      orderBy: { createdAt: "asc" },
-    }),
-  ])
+  const allTransactions = await prisma.transaction.findMany({
+    where: { investmentId: { in: investmentIds } },
+    orderBy: { date: "asc" },
+  })
 
   // Group transactions by investmentId
   const txnByInv = new Map<string, typeof allTransactions>()
@@ -77,18 +70,6 @@ export default async function DashboardPage() {
     })
     .filter((f) => f.transactions.length > 0)
 
-  const products: TrackedProduct[] = rawProducts.map((p) => ({
-    id: p.id,
-    url: p.url,
-    name: p.name,
-    store: p.store,
-    imageUrl: p.imageUrl,
-    price: p.price,
-    checked: p.checked,
-    collection: p.collection ?? null,
-    priceHistory: (p.priceHistory as { date: string; price: number }[] | null) ?? [],
-  }))
-
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -102,7 +83,7 @@ export default async function DashboardPage() {
         </div>
         <PushBell />
       </div>
-      <DashboardContent initialInvestments={investments} initialProducts={products} />
+      <DashboardContent initialInvestments={investments} />
     </main>
   )
 }

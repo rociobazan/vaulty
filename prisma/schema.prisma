@@ -100,19 +100,14 @@ model PushSubscription {
   createdAt DateTime @default(now())
 }
 
-// ── Wishlist ──────────────────────────────────────────────────────────────────
+// ── Notas ─────────────────────────────────────────────────────────────────────
 
-model TrackedProduct {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String?  @db.ObjectId
-  url          String
-  name         String
-  store        String
-  imageUrl     String?
-  price        Int
-  checked      Boolean  @default(false)
-  collection   String?
-  priceHistory Json     // { date: string; price: number }[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Note {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  title     String   @default("")
+  content   Json
+  color     String   @default("yellow")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

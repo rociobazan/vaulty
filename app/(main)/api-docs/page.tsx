@@ -204,32 +204,6 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    name: "Wishlist",
-    description: "Endpoint para agregar productos a la wishlist desde la extensión del navegador.",
-    color: "pink",
-    endpoints: [
-      {
-        method: "GET",
-        path: "/api/tracker/quick-add",
-        summary: "Agregar producto desde la extensión",
-        description: "Recibe los datos del producto por query params (enviados por la extensión del navegador), lo guarda en la base de datos y redirige a la app.",
-        auth: true,
-        params: [
-          { name: "url", in: "query", required: true, type: "string", description: "URL del producto" },
-          { name: "name", in: "query", required: false, type: "string", description: 'Nombre del producto (default: "Producto sin nombre")' },
-          { name: "price", in: "query", required: true, type: "string", description: "Precio del producto (se parsea desde texto)" },
-          { name: "image", in: "query", required: false, type: "string", description: "URL de la imagen del producto" },
-          { name: "collection", in: "query", required: false, type: "string", description: "Colección o categoría del producto" },
-        ],
-        responseCodes: [
-          { code: 302, description: "Redirección a /?tab=precios&tracked=1 si es exitoso" },
-          { code: 302, description: "Redirección a /?tab=precios&trackerError=... si falla" },
-          { code: 302, description: "Redirección a /login si no está autenticado" },
-        ],
-      },
-    ],
-  },
-  {
     name: "CAFCI",
     description: "Proxy a la API pública de CAFCI para búsqueda de fondos comunes de inversión argentinos.",
     color: "violet",

@@ -1,39 +1,21 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Wallet, TrendingUp, Bookmark, LayoutList, PiggyBank } from "lucide-react"
-import { toast } from "sonner"
+import { useState } from "react"
+import { Wallet, TrendingUp, LayoutList, PiggyBank, NotebookPen } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BudgetTab } from "@/components/budget/budget-tab"
 import { InversionesTab, type Fund } from "@/components/tools/balanz-monitor"
-import { PriceTrackerTab, type TrackedProduct } from "@/components/tools/price-tracker"
+import { NotesTab } from "@/components/tools/notes-tab"
 import { TarjetasTab } from "@/components/tools/tarjetas-tab"
 import { GoalsTab } from "@/components/tools/goals-tab"
 
 interface Props {
   initialInvestments: Fund[]
-  initialProducts: TrackedProduct[]
 }
 
-export function DashboardContent({ initialInvestments, initialProducts }: Props) {
+export function DashboardContent({ initialInvestments }: Props) {
   const [tab, setTab] = useState("presupuesto")
-
-  // Land on the right tab and confirm when arriving from the price-tracker bookmarklet
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const tabParam = params.get("tab")
-    const tracked = params.get("tracked")
-    const trackerError = params.get("trackerError")
-
-    if (tabParam) setTab(tabParam)
-    if (tracked) toast.success("Producto agregado a tu wishlist.")
-    if (trackerError) toast.error(trackerError)
-
-    if (tabParam || tracked || trackerError) {
-      window.history.replaceState(null, "", window.location.pathname)
-    }
-  }, [])
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">
@@ -48,10 +30,10 @@ export function DashboardContent({ initialInvestments, initialProducts }: Props)
           <span className="hidden sm:inline">Inversiones</span>
           <span className="sm:hidden">Inv.</span>
         </TabsTrigger>
-        <TabsTrigger value="precios" className="flex-1 gap-1.5 rounded-lg py-2.5 text-xs sm:text-sm">
-          <Bookmark className="size-4 shrink-0" />
-          <span className="hidden sm:inline">Wishlist</span>
-          <span className="sm:hidden">Wish.</span>
+        <TabsTrigger value="notas" className="flex-1 gap-1.5 rounded-lg py-2.5 text-xs sm:text-sm">
+          <NotebookPen className="size-4 shrink-0" />
+          <span className="hidden sm:inline">Notas</span>
+          <span className="sm:hidden">Notas</span>
         </TabsTrigger>
         <TabsTrigger value="tarjetas" className="flex-1 gap-1.5 rounded-lg py-2.5 text-xs sm:text-sm">
           <LayoutList className="size-4 shrink-0" />
@@ -71,8 +53,8 @@ export function DashboardContent({ initialInvestments, initialProducts }: Props)
       <TabsContent value="inversiones">
         {tab === "inversiones" && <InversionesTab initialFunds={initialInvestments} />}
       </TabsContent>
-      <TabsContent value="precios">
-        {tab === "precios" && <PriceTrackerTab initialProducts={initialProducts} />}
+      <TabsContent value="notas">
+        {tab === "notas" && <NotesTab />}
       </TabsContent>
       <TabsContent value="tarjetas">
         {tab === "tarjetas" && <TarjetasTab />}

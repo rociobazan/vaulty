@@ -131,3 +131,54 @@
     @apply font-sans;
   }
 }
+
+/* ── Tiptap note editor ────────────────────────────────────────────────────── */
+.note-editor {
+  outline: none;
+}
+.note-editor p {
+  margin-bottom: 0.25rem;
+}
+.note-editor ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+.note-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.note-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+.note-editor ul[data-type="taskList"] li > label {
+  display: flex;
+  align-items: center;
+  margin-top: 0.1rem;
+  user-select: none;
+}
+.note-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 0.9rem;
+  height: 0.9rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+.note-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.note-editor ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+.note-editor a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.note-editor a:hover {
+  opacity: 0.75;
+}
