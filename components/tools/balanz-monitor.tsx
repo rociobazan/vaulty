@@ -471,6 +471,27 @@ export function InversionesTab({ initialFunds }: Props) {
 
   const arsHistoryPoints = filteredHistoryData.filter((h) => h.arsValue > 0)
 
+  // ── TWR (Time-Weighted Return) ────────────────────────────────────────────
+  // Strips out the effect of capital injections so the chart shows true price
+  // performance. For each day, we subtract new capital before computing the
+  // sub-period return, then chain the sub-period returns.
+  const arsFlows = new Map<string, number>()
+  for (const fund of arsFunds) {
+    for (const txn of fund.transactions) {
+      const flow = (txn.type === "BUY" ? 1 : -1) * txn.cuotapartes * txn.price
+      arsFlows.set(txn.date, (arsFlows.get(txn.date) ?? 0) + flow)
+    }
+  }
+
+  const arsTwrValues: number[] = arsHistoryPoints.length > 0 ? [100] : []
+  for (let i = 1; i < arsHistoryPoints.length; i++) {
+    const prev = arsHistoryPoints[i - 1]
+    const curr = arsHistoryPoints[i]
+    const flow = arsFlows.get(curr.date) ?? 0
+    const dayReturn = prev.arsValue > 0 ? (curr.arsValue - flow) / prev.arsValue : 1
+    arsTwrValues.push(arsTwrValues[i - 1] * dayReturn)
+  }
+
   const normalizedPoints: {
     label: string
     portafolio: number
@@ -479,7 +500,6 @@ export function InversionesTab({ initialFunds }: Props) {
   }[] = (() => {
     if (arsHistoryPoints.length < 2 || ipcData.length === 0) return []
 
-    const basePortfolio = arsHistoryPoints[0].arsValue
     const baseDate = arsHistoryPoints[0].date
 
     // If the portfolio starts in the projected period, anchor the IPC base to the
@@ -497,7 +517,7 @@ export function InversionesTab({ initialFunds }: Props) {
     )
 
     return arsHistoryPoints.map((h, i) => {
-      const portafolio = (h.arsValue / basePortfolio) * 100
+      const portafolio = arsTwrValues[i] ?? 100
       const ipcKnown = h.date.slice(0, 7) <= lastIpcMonth
 
       let ipc: number | null = null
@@ -1026,8 +1046,8 @@ export function InversionesTab({ initialFunds }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <CardTitle className="text-base">
               {chartMode === "evolucion"
-                ? "Evolución Real del Portafolio · Precios CAFCI"
-                : "Portafolio vs Inflación (IPC INDEC)"}
+                ? "Valor del Portafolio · Precios CAFCI"
+                : "Rendimiento vs Inflación (IPC INDEC)"}
             </CardTitle>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -1211,7 +1231,7 @@ export function InversionesTab({ initialFunds }: Props) {
                 </div>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
-                Precios reales de CAFCI · Un registro por día hábil ·{" "}
+                Valor total incluyendo nuevas inversiones · Precios CAFCI · Un registro por día hábil ·{" "}
                 <span className="font-medium">{chartPoints.length} punto{chartPoints.length !== 1 ? "s" : ""} en {chartCurrency}</span>
               </p>
             </>
@@ -1331,7 +1351,7 @@ export function InversionesTab({ initialFunds }: Props) {
                 </div>
               )}
               <p className="mt-2 text-xs text-muted-foreground">
-                Base 100 = primer día del período seleccionado ·{" "}
+                Base 100 = primer día del período · Rendimiento ajustado por aportes (TWR) ·{" "}
                 {lastIpcMonth
                   ? <>IPC real hasta <span className="font-medium">{lastIpcMonth}</span> · línea punteada = proyección basada en última tasa mensual (INDEC publica con ~6 semanas de retraso)</>
                   : "Cargando datos de INDEC…"}
