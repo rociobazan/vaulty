@@ -1,14 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { Wallet, TrendingUp, LayoutList, PiggyBank, NotebookPen } from "lucide-react"
+import dynamic from "next/dynamic"
+import { Wallet, TrendingUp, LayoutList, PiggyBank, NotebookPen, Loader2 } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BudgetTab } from "@/components/budget/budget-tab"
 import { InversionesTab, type Fund } from "@/components/tools/balanz-monitor"
-import { NotesTab } from "@/components/tools/notes-tab"
 import { TarjetasTab } from "@/components/tools/tarjetas-tab"
 import { GoalsTab } from "@/components/tools/goals-tab"
+
+// Tiptap accede a APIs del DOM — cargarlo solo en el cliente evita errores de SSR
+const NotesTab = dynamic(
+  () => import("@/components/tools/notes-tab").then((m) => ({ default: m.NotesTab })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-60 items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+)
 
 interface Props {
   initialInvestments: Fund[]
