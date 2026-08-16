@@ -2,13 +2,12 @@
 
 import { useState } from "react"
 import dynamic from "next/dynamic"
-import { Wallet, TrendingUp, LayoutList, PiggyBank, NotebookPen, Loader2 } from "lucide-react"
+import { Wallet, TrendingUp, LayoutList, NotebookPen, Loader2 } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BudgetTab } from "@/components/budget/budget-tab"
 import { InversionesTab, type Fund } from "@/components/tools/balanz-monitor"
 import { TarjetasTab } from "@/components/tools/tarjetas-tab"
-import { GoalsTab } from "@/components/tools/goals-tab"
 
 // Tiptap accede a APIs del DOM — cargarlo solo en el cliente evita errores de SSR
 const NotesTab = dynamic(
@@ -53,11 +52,6 @@ export function DashboardContent({ initialInvestments }: Props) {
           <span className="hidden sm:inline">Tarjetas</span>
           <span className="sm:hidden">Tarj.</span>
         </TabsTrigger>
-        <TabsTrigger value="objetivos" className="flex-1 gap-1.5 rounded-lg py-2.5 text-xs sm:text-sm">
-          <PiggyBank className="size-4 shrink-0" />
-          <span className="hidden sm:inline">Objetivos</span>
-          <span className="sm:hidden">Obj.</span>
-        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="presupuesto">
@@ -71,9 +65,6 @@ export function DashboardContent({ initialInvestments }: Props) {
       </TabsContent>
       <TabsContent value="tarjetas">
         {tab === "tarjetas" && <TarjetasTab />}
-      </TabsContent>
-      <TabsContent value="objetivos">
-        {tab === "objetivos" && <GoalsTab />}
       </TabsContent>
     </Tabs>
   )
