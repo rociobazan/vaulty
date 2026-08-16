@@ -19,6 +19,7 @@ import {
   Coffee,
   RotateCcw,
   Loader2,
+  Wrench,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -62,6 +63,7 @@ interface CreditCardEntry {
   colorClass: string
   purchases: Purchase[]
   dueDate?: string  // YYYY-MM-DD, varía cada mes
+  maintenanceFee?: number  // gasto mensual fijo sin cuotas, se repite cada mes
 }
 
 interface MonthData {
@@ -194,6 +196,41 @@ function advanceInstallments(data: MonthData): MonthData {
         .map((p) => ({ ...p, id: genId(), quotaCurrent: p.quotaCurrent + 1 })),
     })),
   }
+}
+
+/**
+ * Merge advanced (computed from prev month) into base (local state or DB).
+ * - Purchases in base are preserved (user edits respected).
+ * - Purchases missing from base but present in advance are added.
+ * - Cards missing from base but present in advance are added.
+ * - maintenanceFee is carried from advance if base doesn't have it.
+ * Matching is done by card name and purchase concept.
+ */
+function mergeNextMonthCards(
+  advanced: CreditCardEntry[],
+  base: CreditCardEntry[],
+): CreditCardEntry[] {
+  const advancedByName = new Map(advanced.map((c) => [c.name, c]))
+  const baseByName = new Map(base.map((c) => [c.name, c]))
+
+  const result: CreditCardEntry[] = base.map((baseCard) => {
+    const advCard = advancedByName.get(baseCard.name)
+    if (!advCard) return baseCard
+    const baseConceptSet = new Set(baseCard.purchases.map((p) => p.concept))
+    const missing = advCard.purchases.filter((p) => !baseConceptSet.has(p.concept))
+    return {
+      ...baseCard,
+      maintenanceFee: baseCard.maintenanceFee ?? advCard.maintenanceFee,
+      purchases: [...baseCard.purchases, ...missing],
+    }
+  })
+
+  // Add cards that exist in advance but not in base at all
+  for (const advCard of advanced) {
+    if (!baseByName.has(advCard.name)) result.push(advCard)
+  }
+
+  return result
 }
 
 // ─── ExpenseList: editable label + editable amount ───────────────────────────
@@ -491,41 +528,50 @@ export function BudgetTab() {
     resetUiState()
     setAppState((prev) => {
       const key = getNextMonthKey(prev.currentMonthKey)
+      const currentData = prev.monthsData[prev.currentMonthKey] ?? EMPTY_MONTH
+      // Always recompute the advance from the current month's latest data
+      const advanced = advanceInstallments(currentData)
+      // Merge into whatever is already in local state (preserves user edits,
+      // but adds purchases/cards that were missing because they were added to
+      // the current month AFTER the next month was first created)
+      const base = prev.monthsData[key] ?? advanced
       return {
         currentMonthKey: key,
         monthsData: {
           ...prev.monthsData,
-          ...(prev.monthsData[key]
-            ? {}
-            : {
-                [key]: advanceInstallments(
-                  prev.monthsData[prev.currentMonthKey] ?? EMPTY_MONTH,
-                ),
-              }),
+          [key]: { ...base, creditCards: mergeNextMonthCards(advanced.creditCards, base.creditCards) },
         },
       }
     })
-    // Try loading saved data from DB (overrides auto-generated advance if it exists)
+    // Try loading saved data from DB and merge with the advance
     void fetch(`/api/budget/${nextKey}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return
-        setAppState((prev) => ({
-          ...prev,
-          monthsData: {
-            ...prev.monthsData,
-            [nextKey]: {
-              income: data.income,
-              fixedItems: data.fixedItems,
-              variableItems: data.variableItems,
-              savingsItems: data.savingsItems,
-              creditCards: (data.creditCards ?? []).map((card: CreditCardEntry) => ({
-                ...card,
-                purchases: (card.purchases as unknown as Record<string, unknown>[]).map(normalizePurchase),
-              })),
+        setAppState((prev) => {
+          // Re-compute advance from the prev month (now in state)
+          const prevData = prev.monthsData[getPrevMonthKey(nextKey)] ?? EMPTY_MONTH
+          const advanced = advanceInstallments(prevData)
+          const dbCards: CreditCardEntry[] = (data.creditCards ?? []).map(
+            (card: CreditCardEntry) => ({
+              ...card,
+              purchases: (card.purchases as unknown as Record<string, unknown>[]).map(normalizePurchase),
+            }),
+          )
+          return {
+            ...prev,
+            monthsData: {
+              ...prev.monthsData,
+              [nextKey]: {
+                income: data.income,
+                fixedItems: data.fixedItems,
+                variableItems: data.variableItems,
+                savingsItems: data.savingsItems,
+                creditCards: mergeNextMonthCards(advanced.creditCards, dbCards),
+              },
             },
-          },
-        }))
+          }
+        })
       })
       .catch(() => {})
   }
@@ -534,10 +580,14 @@ export function BudgetTab() {
 
   const ccTotals = useMemo(
     () =>
-      creditCards.map((card) => ({
-        ...card,
-        total: card.purchases.reduce((sum, p) => sum + p.amount, 0),
-      })),
+      creditCards.map((card) => {
+        const purchasesTotal = card.purchases.reduce((sum, p) => sum + p.amount, 0)
+        return {
+          ...card,
+          purchasesTotal,
+          total: purchasesTotal + (card.maintenanceFee ?? 0),
+        }
+      }),
     [creditCards],
   )
 
@@ -1301,16 +1351,43 @@ export function BudgetTab() {
                   <TableFooter>
                     <TableRow>
                       <TableCell colSpan={2} className="pl-4 text-sm font-semibold">
-                        Total de la tarjeta
+                        Subtotal consumos
                       </TableCell>
                       <TableCell className="pr-4 text-right font-bold tabular-nums">
-                        {formatARS(card.total)}
+                        {formatARS(card.purchasesTotal)}
                       </TableCell>
                       <TableCell />
                     </TableRow>
                   </TableFooter>
                 </Table>
                 </div>
+
+                {/* Maintenance fee row */}
+                <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Wrench className="size-3.5" />
+                    Mantenimiento mensual
+                  </label>
+                  <MoneyInput
+                    value={card.maintenanceFee ?? 0}
+                    onChange={(v) =>
+                      updateSection("creditCards", (prev) =>
+                        prev.map((c) =>
+                          c.id === card.id ? { ...c, maintenanceFee: v || undefined } : c,
+                        ),
+                      )
+                    }
+                    className="w-36"
+                  />
+                </div>
+
+                {/* Grand total (only visible when maintenance > 0) */}
+                {(card.maintenanceFee ?? 0) > 0 && (
+                  <div className="flex items-center justify-between border-t border-border bg-muted/30 px-4 py-2">
+                    <span className="text-xs font-semibold text-foreground">Total de la tarjeta</span>
+                    <span className="text-sm font-bold tabular-nums">{formatARS(card.total)}</span>
+                  </div>
+                )}
 
                 <div className="border-t border-border p-3">
                   {addingPurchaseTo === card.id ? (
