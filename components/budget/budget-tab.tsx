@@ -215,13 +215,25 @@ function mergeNextMonthCards(
 
   const result: CreditCardEntry[] = base.map((baseCard) => {
     const advCard = advancedByName.get(baseCard.name)
-    if (!advCard) return baseCard
-    const baseConceptSet = new Set(baseCard.purchases.map((p) => p.concept))
-    const missing = advCard.purchases.filter((p) => !baseConceptSet.has(p.concept))
+
+    // Purchases with quotaCurrent > 1 were always carried from a previous month.
+    // If they are no longer in `advanced`, the source was deleted — drop them.
+    // Purchases with quotaCurrent === 1 were added directly to this month — keep them.
+    const advConceptSet = new Set(advCard?.purchases.map((p) => p.concept) ?? [])
+    const filteredPurchases = baseCard.purchases.filter(
+      (p) => p.quotaCurrent === 1 || advConceptSet.has(p.concept),
+    )
+
+    if (!advCard) return { ...baseCard, purchases: filteredPurchases }
+
+    // Add purchases from advanced that are missing from the filtered base
+    const filteredConceptSet = new Set(filteredPurchases.map((p) => p.concept))
+    const missing = advCard.purchases.filter((p) => !filteredConceptSet.has(p.concept))
+
     return {
       ...baseCard,
       maintenanceFee: baseCard.maintenanceFee ?? advCard.maintenanceFee,
-      purchases: [...baseCard.purchases, ...missing],
+      purchases: [...filteredPurchases, ...missing],
     }
   })
 
@@ -710,13 +722,38 @@ export function BudgetTab() {
   }
 
   function deletePurchase(cardId: string, purchaseId: string) {
-    updateSection("creditCards", (prev) =>
-      prev.map((c) =>
-        c.id === cardId
-          ? { ...c, purchases: c.purchases.filter((p) => p.id !== purchaseId) }
-          : c,
-      ),
-    )
+    setAppState((prev) => {
+      const currentKey = prev.currentMonthKey
+      const currentData = prev.monthsData[currentKey] ?? EMPTY_MONTH
+
+      // Identify by card name + concept for cross-month matching (IDs differ per month)
+      const card = currentData.creditCards.find((c) => c.id === cardId)
+      const purchase = card?.purchases.find((p) => p.id === purchaseId)
+      if (!card || !purchase) return prev
+
+      const cardName = card.name
+      const concept = purchase.concept
+
+      // Remove from current month and all future months already in local state.
+      // Months not yet loaded are handled by mergeNextMonthCards when navigated to.
+      const updatedMonthsData: Record<string, MonthData> = {}
+      for (const [key, data] of Object.entries(prev.monthsData)) {
+        if (key >= currentKey) {
+          updatedMonthsData[key] = {
+            ...data,
+            creditCards: data.creditCards.map((c) =>
+              c.name === cardName
+                ? { ...c, purchases: c.purchases.filter((p) => p.concept !== concept) }
+                : c,
+            ),
+          }
+        } else {
+          updatedMonthsData[key] = data
+        }
+      }
+
+      return { ...prev, monthsData: updatedMonthsData }
+    })
   }
 
   function startEditPurchase(cardId: string, p: Purchase) {
